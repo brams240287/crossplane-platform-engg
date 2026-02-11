@@ -1,0 +1,12 @@
+# Bootstrap inputs (created/updated by the bootstrap workflow)
+team:
+  namespace: "CHANGE_ME"
+  name: "CHANGE_ME" # Human-friendly team name, e.g. "Backend"
+app:
+  name: "CHANGE_ME" # e.g. "checkout"
+platform:
+  policyProfile: "standard" # baseline|standard|restricted
+  environments:
+    - dev
+    - staging
+    - prod

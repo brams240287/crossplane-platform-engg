@@ -1,0 +1,26 @@
+name: Claims Repo - Lint
+
+on:
+  pull_request:
+    paths:
+      - "claims/**"
+      - "bootstrap/**"
+      - "*.md"
+      - ".github/**"
+  push:
+    branches: [main]
+    paths:
+      - "claims/**"
+      - "bootstrap/**"
+      - "*.md"
+      - ".github/**"
+
+jobs:
+  yamllint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install yamllint
+      - name: Lint YAML
+        run: |
+          yamllint -d "{extends: default, rules: {line-length: {max: 140}, document-start: disable}}" claims/ bootstrap/ || true

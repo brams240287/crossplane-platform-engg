@@ -1,0 +1,27 @@
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: azure-platform
+spec:
+  crossplane:
+    version: ">=v2.1.0-0"
+  dependsOn:
+    # Providers used by the compositions in manifests/compositions/**
+    - apiVersion: pkg.crossplane.io/v1
+      kind: Provider
+      package: xpkg.upbound.io/upbound/provider-family-azure
+      version: ">=v2.3.0"
+    - apiVersion: pkg.crossplane.io/v1
+      kind: Provider
+      package: xpkg.upbound.io/upbound/provider-azure-network
+      version: ">=v2.3.0"
+    - apiVersion: pkg.crossplane.io/v1
+      kind: Provider
+      package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes
+      version: ">=v1.2.0"
+
+    # Composition function used by Pipeline mode compositions.
+    - apiVersion: pkg.crossplane.io/v1
+      kind: Function
+      package: xpkg.upbound.io/crossplane-contrib/function-patch-and-transform
+      version: ">=v0.8.0"

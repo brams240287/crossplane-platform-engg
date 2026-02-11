@@ -1,0 +1,66 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: xvirtualnetworks.azure.platform.io
+spec:
+  group: azure.platform.io
+  names:
+    kind: XVirtualNetwork
+    plural: xvirtualnetworks
+  claimNames:
+    kind: VirtualNetwork
+    plural: virtualnetworks
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                parameters:
+                  type: object
+                  properties:
+                    resourceGroupName:
+                      type: string
+                      pattern: "^rg-[a-z0-9-]{3,50}$"
+                      description: "Name of the Azure Resource Group (must start with 'rg-')"
+                    location:
+                      type: string
+                      default: "eastus"
+                      enum: ["eastus", "westus", "northeurope", "westeurope"]
+                    addressSpace:
+                      type: string
+                      default: "10.0.0.0/16"
+                      pattern: "^10\\.(\\d{1,3})\\.(\\d{1,3})\\.0/(16|24)$"
+                    subnets:
+                      type: array
+                      description: "List of subnets to create in the virtual network"
+                      minItems: 1
+                      items:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                            pattern: "^[a-z0-9]([a-z0-9-]{0,78}[a-z0-9])?$"
+                            description: "Subnet name (lowercase alphanumeric and hyphens)"
+                          addressPrefix:
+                            type: string
+                            pattern: "^10\\.(\\d{1,3})\\.(\\d{1,3})\\.0/(24|25|26|27|28)$"
+                            description: "Subnet CIDR range"
+                        required:
+                          - name
+                          - addressPrefix
+                    tags:
+                      type: object
+                      description: "Custom tags to apply to resources"
+                      additionalProperties:
+                        type: string
+                  required:
+                    - resourceGroupName
+                    - location
+              required:
+                - parameters

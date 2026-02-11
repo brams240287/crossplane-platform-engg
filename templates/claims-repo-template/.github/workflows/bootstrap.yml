@@ -1,0 +1,166 @@
+name: Claims Repo - Bootstrap
+
+on:
+  workflow_dispatch:
+    inputs:
+      team_namespace:
+        description: "Kubernetes namespace for the team (e.g., team-backend)"
+        required: true
+        type: string
+      team_name:
+        description: "Human-friendly team name (e.g., Backend)"
+        required: true
+        type: string
+      app_name:
+        description: "App name used in claim naming/tags (e.g., checkout)"
+        required: true
+        type: string
+      environments:
+        description: "Comma-separated environments (dev,staging,prod)"
+        required: true
+        default: "dev,staging"
+        type: string
+      policy_profile:
+        description: "Policy profile (baseline|standard|restricted)"
+        required: true
+        default: "standard"
+        type: choice
+        options:
+          - baseline
+          - standard
+          - restricted
+      aad_group_object_id:
+        description: "Azure AD group Object ID (GUID) to bind to namespace admin role"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate bootstrap files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          from pathlib import Path
+          import os
+          import textwrap
+
+          team_ns = os.environ.get('TEAM_NS', '').strip()
+          team_name = os.environ.get('TEAM_NAME', '').strip()
+          app_name = os.environ.get('APP_NAME', '').strip()
+          envs_raw = os.environ.get('ENVS_RAW', '').strip()
+          policy = os.environ.get('POLICY', '').strip()
+            aad_group_object_id = os.environ.get('AAD_GROUP_OBJECT_ID', '').strip()
+
+            if not team_ns or not team_name or not app_name or not envs_raw or not policy or not aad_group_object_id:
+              raise SystemExit('Missing required inputs (TEAM_NS, TEAM_NAME, APP_NAME, ENVS_RAW, POLICY, AAD_GROUP_OBJECT_ID)')
+
+          envs = [e.strip() for e in envs_raw.split(',') if e.strip()]
+          if not envs:
+              raise SystemExit('No environments parsed from ENVS_RAW')
+
+          Path('bootstrap').mkdir(parents=True, exist_ok=True)
+          Path('claims').mkdir(parents=True, exist_ok=True)
+
+          team_yaml = "\n".join(
+              [
+                  'team:',
+                  f'  namespace: "{team_ns}"',
+                  f'  name: "{team_name}"',
+                  'app:',
+                  f'  name: "{app_name}"',
+                  'platform:',
+                  f'  policyProfile: "{policy}"',
+                  '  environments:',
+              ]
+              + [f'    - {e}' for e in envs]
+          ) + "\n"
+          Path('bootstrap/team.yaml').write_text(team_yaml)
+
+          # Tenant onboarding claim (applied to the platform-controlled namespace).
+          tenant_yaml = textwrap.dedent(
+              f"""\
+              apiVersion: azure.platform.io/v1alpha1
+              kind: Tenant
+              metadata:
+                name: {team_ns}
+                namespace: platform-tenants
+              spec:
+                parameters:
+                  namespace: {team_ns}
+                  policyProfile: {policy}
+                  aadGroupObjectId: {aad_group_object_id}
+                compositionSelector:
+                  matchLabels:
+                    type: platform
+              """
+          )
+          Path('bootstrap/tenant.yaml').write_text(tenant_yaml)
+
+          # Example claims (namespaced claim kind backed by XR kind).
+          for e in envs:
+              env_dir = Path('claims') / e
+              env_dir.mkdir(parents=True, exist_ok=True)
+              claim_yaml = textwrap.dedent(
+                  f"""\
+                  apiVersion: azure.platform.io/v1alpha1
+                  kind: VirtualNetwork
+                  metadata:
+                    name: {e}-{app_name}-vnet
+                    namespace: {team_ns}
+                  spec:
+                    parameters:
+                      location: eastus
+                    compositionSelector:
+                      matchLabels:
+                        provider: azure
+                        environment: {e}
+                  """
+              )
+              (env_dir / f"{e}-{app_name}-vnet.yaml").write_text(claim_yaml)
+
+          # CODEOWNERS
+          Path('.github').mkdir(parents=True, exist_ok=True)
+          codeowners = textwrap.dedent(
+              f"""\
+              * @your-org/platform-team
+              /claims/ @your-org/{team_ns}
+              """
+          )
+          Path('.github/CODEOWNERS').write_text(codeowners)
+          PY
+        env:
+          TEAM_NS: ${{ inputs.team_namespace }}
+          TEAM_NAME: ${{ inputs.team_name }}
+          APP_NAME: ${{ inputs.app_name }}
+          ENVS_RAW: ${{ inputs.environments }}
+          POLICY: ${{ inputs.policy_profile }}
+          AAD_GROUP_OBJECT_ID: ${{ inputs.aad_group_object_id }}
+
+      - name: Create bootstrap PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          title: "Bootstrap claims repo"
+          body: |
+            Bootstraps the claims repo with team/app settings, tenant onboarding claim, and example claims.
+
+            Inputs:
+            - team namespace: ${{ inputs.team_namespace }}
+            - app: ${{ inputs.app_name }}
+            - envs: ${{ inputs.environments }}
+            - policy: ${{ inputs.policy_profile }}
+            - aad group object id: ${{ inputs.aad_group_object_id }}
+          commit-message: "bootstrap: initialize team/app/envs"
+          branch: "bootstrap/init"
+          delete-branch: true

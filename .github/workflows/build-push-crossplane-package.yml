@@ -1,0 +1,91 @@
+name: Build and Push Crossplane Configuration Package
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - "manifests/compositions/**"
+      - "manifests/functions/**"
+      - "packages/platform/crossplane.yaml"
+      - "scripts/build-platform-xpkg.sh"
+      - "scripts/push-platform-xpkg-acr.sh"
+      - ".github/workflows/build-push-crossplane-package.yml"
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - "manifests/compositions/**"
+      - "manifests/functions/**"
+      - "packages/platform/crossplane.yaml"
+  workflow_dispatch:
+  release:
+    types: [published]
+
+env:
+  CROSSPLANE_CRANK_VERSION: v2.1.4
+  CROSSPLANE_CLI_BASE_URL: https://releases.crossplane.io/stable
+  PACKAGE_REPO: crossplane/azure-platform
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Crossplane CLI (crank)
+        run: |
+          set -euo pipefail
+          curl -fsSL "${CROSSPLANE_CLI_BASE_URL}/${CROSSPLANE_CRANK_VERSION}/bin/linux_amd64/crank" -o /usr/local/bin/crossplane
+          chmod +x /usr/local/bin/crossplane
+          crossplane version
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build xpkg
+        run: |
+          set -euo pipefail
+          ./scripts/build-platform-xpkg.sh
+
+      - name: Determine tag
+        id: tag
+        run: |
+          set -euo pipefail
+          # Crossplane xpkg requires semver tags.
+          # - If this workflow runs on a GitHub Release, prefer the release tag (e.g. v1.2.3)
+          # - Otherwise, use a semver prerelease derived from SHA.
+          if [ "${{ github.event_name }}" = "release" ] && [ -n "${{ github.ref_name }}" ]; then
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=v0.0.0-${{ github.sha }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Push to ACR
+        env:
+          ACR_NAME: ${{ secrets.ACR_NAME }}
+          PACKAGE_REPO: ${{ env.PACKAGE_REPO }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          ./scripts/push-platform-xpkg-acr.sh
+
+      - name: Output
+        env:
+          ACR_NAME: ${{ secrets.ACR_NAME }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          echo "Pushed: ${ACR_NAME}.azurecr.io/${PACKAGE_REPO}:${TAG}"

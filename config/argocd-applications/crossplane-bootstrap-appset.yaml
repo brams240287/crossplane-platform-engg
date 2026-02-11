@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: crossplane-bootstrap
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: https://github.com/brams240287/project-crossplane.git
+        revision: main
+        directories:
+          - path: bootstrap
+  template:
+    metadata:
+      name: "bootstrap"
+      labels:
+        type: bootstrap
+        managed-by: argocd
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/brams240287/project-crossplane.git
+        targetRevision: main
+        path: bootstrap
+        directory:
+          recurse: true
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: platform-tenants
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+          allowEmpty: false
+        syncOptions:
+          - CreateNamespace=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m

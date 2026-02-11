@@ -1,0 +1,166 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: tenant-onboarding
+  labels:
+    type: platform
+spec:
+  compositeTypeRef:
+    apiVersion: azure.platform.io/v1alpha1
+    kind: XTenant
+
+  mode: Pipeline
+  pipeline:
+    - step: patch-and-transform
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: namespace
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
+              metadata:
+                name: ""
+              spec:
+                providerConfigRef:
+                  name: in-cluster
+                forProvider:
+                  manifest:
+                    apiVersion: v1
+                    kind: Namespace
+                    metadata:
+                      name: ""
+                      labels:
+                        platform.io/team: ""
+                        platform.io/policy-profile: "standard"
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: metadata.name
+                toFieldPath: metadata.name
+                transforms:
+                  - type: string
+                    string:
+                      type: Format
+                      fmt: "tenant-%s-namespace"
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.namespace
+                toFieldPath: spec.forProvider.manifest.metadata.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.namespace
+                toFieldPath: spec.forProvider.manifest.metadata.labels[platform.io/team]
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.policyProfile
+                toFieldPath: spec.forProvider.manifest.metadata.labels[platform.io/policy-profile]
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.extraLabels
+                toFieldPath: spec.forProvider.manifest.metadata.labels
+                policy:
+                  toFieldPath: MergeObjects
+
+          - name: claimsRole
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
+              metadata:
+                name: ""
+              spec:
+                providerConfigRef:
+                  name: in-cluster
+                references:
+                  - dependsOn:
+                      apiVersion: kubernetes.crossplane.io/v1alpha2
+                      kind: Object
+                      name: ""
+                forProvider:
+                  manifest:
+                    apiVersion: rbac.authorization.k8s.io/v1
+                    kind: Role
+                    metadata:
+                      name: claims-admin
+                      namespace: ""
+                    rules:
+                      # Broad namespace admin for application teams.
+                      # If you want least-privilege, replace this with specific
+                      # apiGroups/resources for only the claim kinds you expose.
+                      - apiGroups: ["*"]
+                        resources: ["*"]
+                        verbs: ["*"]
+                      - apiGroups: [""]
+                        resources: ["events"]
+                        verbs: ["get", "list", "watch"]
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: metadata.name
+                toFieldPath: metadata.name
+                transforms:
+                  - type: string
+                    string:
+                      type: Format
+                      fmt: "tenant-%s-claims-role"
+              - type: FromCompositeFieldPath
+                fromFieldPath: metadata.name
+                toFieldPath: spec.references[0].dependsOn.name
+                transforms:
+                  - type: string
+                    string:
+                      type: Format
+                      fmt: "tenant-%s-namespace"
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.namespace
+                toFieldPath: spec.forProvider.manifest.metadata.namespace
+
+          - name: claimsRoleBinding
+            base:
+              apiVersion: kubernetes.crossplane.io/v1alpha2
+              kind: Object
+              metadata:
+                name: ""
+              spec:
+                providerConfigRef:
+                  name: in-cluster
+                references:
+                  - dependsOn:
+                      apiVersion: kubernetes.crossplane.io/v1alpha2
+                      kind: Object
+                      name: ""
+                forProvider:
+                  manifest:
+                    apiVersion: rbac.authorization.k8s.io/v1
+                    kind: RoleBinding
+                    metadata:
+                      name: claims-admin
+                      namespace: ""
+                    roleRef:
+                      apiGroup: rbac.authorization.k8s.io
+                      kind: Role
+                      name: claims-admin
+                    subjects:
+                      - kind: Group
+                        apiGroup: rbac.authorization.k8s.io
+                        name: ""
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: metadata.name
+                toFieldPath: metadata.name
+                transforms:
+                  - type: string
+                    string:
+                      type: Format
+                      fmt: "tenant-%s-claims-rb"
+              - type: FromCompositeFieldPath
+                fromFieldPath: metadata.name
+                toFieldPath: spec.references[0].dependsOn.name
+                transforms:
+                  - type: string
+                    string:
+                      type: Format
+                      fmt: "tenant-%s-claims-role"
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.namespace
+                toFieldPath: spec.forProvider.manifest.metadata.namespace
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.aadGroupObjectId
+                toFieldPath: spec.forProvider.manifest.subjects[0].name

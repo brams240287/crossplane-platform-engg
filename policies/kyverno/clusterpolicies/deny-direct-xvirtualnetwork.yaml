@@ -1,0 +1,41 @@
+# yaml-language-server: $schema=../../../schemas/loose-object.schema.json
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: deny-direct-xvirtualnetwork
+  annotations:
+    policies.kyverno.io/title: Deny direct XR creation (XVirtualNetwork)
+    policies.kyverno.io/category: Crossplane
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: XVirtualNetwork
+    policies.kyverno.io/description: >-
+      Denies direct creation/updates/deletes of the composite XR kind XVirtualNetwork
+      by non-platform identities. Crossplane controllers should create XRs as a result
+      of namespaced claims (VirtualNetwork).
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: deny-non-platform-xvirtualnetwork
+      match:
+        any:
+          - resources:
+              apiGroups: ["azure.platform.io"]
+              kinds: ["XVirtualNetwork"]
+              operations: ["CREATE", "UPDATE", "DELETE"]
+      exclude:
+        any:
+          # Allow Crossplane core controller to manage XRs.
+          - subjects:
+              - kind: ServiceAccount
+                name: crossplane
+                namespace: crossplane-system
+          # Allow cluster-admins (optional; keep if you use break-glass).
+          - subjects:
+              - kind: Group
+                name: system:masters
+      validate:
+        message: >-
+          Direct management of XVirtualNetwork is not allowed. Create/update the namespaced
+          claim kind VirtualNetwork instead.
+        deny: {}

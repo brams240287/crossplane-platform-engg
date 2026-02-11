@@ -1,0 +1,156 @@
+# Crossplane Platform Engineering Development Container
+FROM ubuntu:22.04
+
+# Avoid prompts from apt
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install corporate CA certificate FIRST (before any other network operations)
+COPY .devcontainer/corporate-ca.crt /usr/local/share/ca-certificates/corporate-ca.crt
+RUN chmod 644 /usr/local/share/ca-certificates/corporate-ca.crt \
+    && apt-get update \
+    && apt-get install -y ca-certificates \
+    && update-ca-certificates \
+    && echo "✅  CA certificate installed" \
+    && echo 'export CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt' >> /etc/environment \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set curl to use the updated CA bundle for all subsequent commands
+ENV CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+
+# Install base dependencies (now with trusted corporate CA)
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    git \
+    gnupg \
+    lsb-release \
+    software-properties-common \
+    apt-transport-https \
+    build-essential \
+    unzip \
+    jq \
+    vim \
+    nano \
+    sudo \
+    bash-completion \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create vscode user with sudo access
+RUN useradd -m -s /bin/bash -G sudo vscode \
+    && echo "vscode ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# Install Docker CLI and Docker Compose
+RUN install -m 0755 -d /etc/apt/keyrings \
+    && curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg \
+    && chmod a+r /etc/apt/keyrings/docker.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null \
+    && apt-get update \
+    && apt-get install -y docker-ce-cli docker-compose-plugin \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install kubectl - direct binary download method
+RUN KUBECTL_VERSION="v1.29.0" \
+    && curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
+    && install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl \
+    && rm kubectl
+
+# Install Helm - direct binary download method
+RUN HELM_VERSION="v3.13.3" \
+    && curl -LO "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" \
+    && tar -zxvf helm-${HELM_VERSION}-linux-amd64.tar.gz \
+    && mv linux-amd64/helm /usr/local/bin/helm \
+    && rm -rf linux-amd64 helm-${HELM_VERSION}-linux-amd64.tar.gz
+
+# Install kind
+RUN curl -Lo /usr/local/bin/kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64 \
+    && chmod +x /usr/local/bin/kind
+
+# Install Azure CLI
+RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+
+# Install Go
+ENV GO_VERSION=1.21.6
+RUN wget -q https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz \
+    && tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz \
+    && rm go${GO_VERSION}.linux-amd64.tar.gz
+ENV PATH="/usr/local/go/bin:/home/vscode/go/bin:${PATH}"
+ENV GOPATH="/home/vscode/go"
+
+# Install Python 3.11 and pip
+RUN add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update \
+    && apt-get install -y python3.11 python3.11-venv python3.11-dev python3-pip \
+    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install yq
+RUN wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 \
+    && chmod +x /usr/local/bin/yq
+
+# Install Crossplane CLI - using specific version
+RUN CROSSPLANE_VERSION="v1.18.1" \
+    && curl -sLo /usr/local/bin/crossplane "https://releases.crossplane.io/stable/${CROSSPLANE_VERSION}/bin/linux_amd64/crank" \
+    && chmod +x /usr/local/bin/crossplane
+
+# Install shellcheck
+RUN apt-get update && apt-get install -y shellcheck \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install yamllint
+RUN pip3 install --no-cache-dir yamllint
+
+# Install Nushell
+RUN NUSHELL_VERSION="0.99.1" \
+    && wget -qO /tmp/nushell.tar.gz "https://github.com/nushell/nushell/releases/download/${NUSHELL_VERSION}/nu-${NUSHELL_VERSION}-x86_64-unknown-linux-gnu.tar.gz" \
+    && tar -xzf /tmp/nushell.tar.gz -C /tmp \
+    && mv /tmp/nu-${NUSHELL_VERSION}-x86_64-unknown-linux-gnu/nu /usr/local/bin/nu \
+    && chmod +x /usr/local/bin/nu \
+    && rm -rf /tmp/nushell.tar.gz /tmp/nu-${NUSHELL_VERSION}-x86_64-unknown-linux-gnu
+
+# Switch to vscode user
+USER vscode
+WORKDIR /home/vscode
+
+# Install Python packages for vscode user
+RUN pip3 install --user --no-cache-dir \
+    mkdocs \
+    mkdocs-material \
+    mkdocs-mermaid2-plugin \
+    pymdown-extensions \
+    beautifulsoup4
+
+# Install Go tools for composition functions
+RUN go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+# Set up bash completion
+RUN echo 'source /usr/share/bash-completion/bash_completion' >> ~/.bashrc \
+    && echo 'source <(kubectl completion bash)' >> ~/.bashrc \
+    && echo 'alias k=kubectl' >> ~/.bashrc \
+    && echo 'complete -F __start_kubectl k' >> ~/.bashrc \
+    && echo 'alias kgp="kubectl get providers"' >> ~/.bashrc \
+    && echo 'alias kgc="kubectl get compositions"' >> ~/.bashrc \
+    && echo 'alias kgxrd="kubectl get xrd"' >> ~/.bashrc
+
+# Set environment variables
+ENV CROSSPLANE_NAMESPACE=crossplane-system
+ENV KUBECONFIG=/home/vscode/.kube/config
+ENV PATH="/home/vscode/.local/bin:${PATH}"
+
+# Create workspace directory
+RUN mkdir -p /home/vscode/workspace
+
+# Set the default working directory
+WORKDIR /home/vscode/workspace
+
+# Keep container running
+CMD ["/bin/bash"]

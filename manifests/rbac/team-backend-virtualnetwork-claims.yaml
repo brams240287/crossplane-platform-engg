@@ -1,0 +1,33 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: claims-virtualnetwork-editor
+  namespace: team-backend
+rules:
+  # Allow CRUD on the *claim* kind only (namespaced)
+  - apiGroups: ["azure.platform.io"]
+    resources: ["virtualnetworks"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Helpful read-only access for debugging in the namespace
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: claims-virtualnetwork-editor
+  namespace: team-backend
+subjects:
+  # Replace with your IdP/OIDC group or GitHub team mapping.
+  # Examples:
+  # - kind: Group
+  #   name: "oidc:team-backend"
+  - kind: Group
+    name: "team-backend"
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: claims-virtualnetwork-editor

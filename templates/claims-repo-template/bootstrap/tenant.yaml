@@ -1,0 +1,13 @@
+apiVersion: azure.platform.io/v1alpha1
+kind: Tenant
+metadata:
+  name: team-backend
+  namespace: platform-tenants
+spec:
+  parameters:
+    namespace: team-backend
+    policyProfile: standard
+    aadGroupObjectId: 00000000-0000-0000-0000-000000000000
+  compositionSelector:
+    matchLabels:
+      type: platform

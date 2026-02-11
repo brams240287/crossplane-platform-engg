@@ -1,0 +1,80 @@
+site_name: Crossplane Azure Infrastructure
+site_description: Documentation for Crossplane-based Azure infrastructure
+site_author: Infrastructure Team
+site_url: https://your-domain.com/docs
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Overview: readme.md
+      - Quick Start: getting-started.md
+      - Project Structure: structure.md
+  - Developer Guide:
+      - GitOps Claim Consumption: developer-guide/gitops-claim-consumption.md
+      - Enterprise GitOps at Scale: developer-guide/enterprise-gitops-at-scale.md
+  - Operations Guide:
+      - Corporate CA Configuration: operations-guide/corporate-ca-configuration.md
+      - Dockerfile CA Installation: operations-guide/dockerfile-ca-installation.md
+      - GitOps Platform: operations-guide/gitops-platform.md
+      - Platform Rollback: operations-guide/platform-rollback.md
+  - Compositions:
+      - Network Compositions: compositions/network.md
+      - Application Stack: compositions/application-stack.md
+  - Reference:
+      - Functions: reference/functions.md
+  - DevContainer:
+      - Setup Guide: devcontainer/setup.md
+      - CA Certificate Setup: devcontainer/setup-ca.md
+  - Migration Guide: migration.md
+  - Resources: resource.md
+
+plugins:
+  - search
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - attr_list
+  - md_in_html
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/your-org/crossplane-infrastructure

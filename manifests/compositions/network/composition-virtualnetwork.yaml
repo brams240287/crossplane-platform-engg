@@ -1,0 +1,79 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: virtualnetwork-azure
+  labels:
+    provider: azure
+spec:
+  compositeTypeRef:
+    apiVersion: azure.platform.io/v1alpha1
+    kind: XVirtualNetwork
+  
+  mode: Pipeline
+  pipeline:
+  - step: patch-and-transform
+    functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      resources:
+      - name: resourceGroup
+        base:
+          apiVersion: azure.upbound.io/v1beta1
+          kind: ResourceGroup
+          metadata:
+            labels:
+              crossplane.io/claim-name: ""
+          spec:
+            forProvider:
+              location: eastus
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.location
+          toFieldPath: spec.forProvider.location
+        # Patch the claim name to create consistent RG name
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: metadata.annotations[crossplane.io/external-name]
+          transforms:
+          - type: string
+            string:
+              fmt: "rg-%s"
+              type: Format
+      
+      - name: virtualNetwork
+        base:
+          apiVersion: network.azure.upbound.io/v1beta1
+          kind: VirtualNetwork
+          spec:
+            forProvider:
+              addressSpace:
+              - "10.0.0.0/16"
+              location: eastus
+              resourceGroupNameSelector:
+                matchControllerRef: true
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.location
+          toFieldPath: spec.forProvider.location
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.addressSpace
+          toFieldPath: spec.forProvider.addressSpace[0]
+      
+      - name: subnet
+        base:
+          apiVersion: network.azure.upbound.io/v1beta1
+          kind: Subnet
+          spec:
+            forProvider:
+              addressPrefixes:
+              - "10.0.1.0/24"
+              resourceGroupNameSelector:
+                matchControllerRef: true
+              virtualNetworkNameSelector:
+                matchControllerRef: true
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.subnetAddressPrefix
+          toFieldPath: spec.forProvider.addressPrefixes[0]

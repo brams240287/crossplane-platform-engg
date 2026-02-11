@@ -1,0 +1,204 @@
+name: Platform Deployment
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - "manifests/**"
+      - "claims/**"
+      - "nu-scripts/**"
+      - "config/**"
+      - "scripts/**"
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - "manifests/**"
+      - "claims/**"
+      - "nu-scripts/**"
+      - "config/**"
+      - "scripts/**"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+env:
+  NUSHELL_VERSION: "0.99.1"
+
+jobs:
+  validate:
+    name: Validate Platform Resources
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.29.0"
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Lint YAML files
+        run: |
+          yamllint -d "{extends: default, rules: {line-length: {max: 120}, document-start: disable}}" manifests/ || true
+          yamllint -d "{extends: default, rules: {line-length: {max: 120}, document-start: disable}}" claims/ || true
+          yamllint -d "{extends: default, rules: {line-length: {max: 120}, document-start: disable}}" config/ || true
+
+      - name: Validate Kubernetes manifests (dry-run)
+        run: |
+          for file in $(find manifests/ claims/ config/ -name "*.yaml" -o -name "*.yml"); do
+            echo "Validating $file..."
+            kubectl apply -f "$file" --dry-run=client --validate=true || echo "⚠️ Validation issue in $file"
+          done
+
+      - name: Validate Compositions with Crossplane CLI
+        run: |
+          # Install Crossplane CLI
+          curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh" | sh
+          sudo mv crossplane /usr/local/bin/
+
+          # Validate XRDs and Compositions
+          for xrd in $(find manifests/compositions -name "xrd-*.yaml"); do
+            echo "Validating XRD: $xrd"
+            crossplane beta validate "$xrd" || true
+          done
+
+          for comp in $(find manifests/compositions -name "composition-*.yaml"); do
+            echo "Validating Composition: $comp"
+            crossplane beta validate "$comp" || true
+          done
+
+      - name: Run custom validation scripts
+        run: |
+          if [ -f "./scripts/validate-compositions.sh" ]; then
+            chmod +x ./scripts/validate-compositions.sh
+            ./scripts/validate-compositions.sh
+          fi
+
+          if [ -f "./scripts/validate-claims.sh" ]; then
+            chmod +x ./scripts/validate-claims.sh
+            ./scripts/validate-claims.sh
+          fi
+
+  deploy-dev:
+    name: Deploy to Development
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev'
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.29.0"
+
+      - name: Setup Nushell
+        run: |
+          wget -q "https://github.com/nushell/nushell/releases/download/${NUSHELL_VERSION}/nu-${NUSHELL_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          tar -xzf "nu-${NUSHELL_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          sudo mv "nu-${NUSHELL_VERSION}-x86_64-unknown-linux-gnu/nu" /usr/local/bin/nu
+          nu --version
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.DEV_KUBECONFIG }}" | base64 -d > ~/.kube/config
+
+      - name: Deploy Platform to Dev
+        run: |
+          # GitOps bootstrap: installs/updates ArgoCD (idempotent) and applies ArgoCD Applications/ApplicationSets.
+          nu nu-scripts/platform-deploy.nu --environment dev --gitops --verbose
+
+      - name: Verify Deployment
+        run: |
+          kubectl get providers
+          kubectl get xrd
+          kubectl get compositions
+          kubectl get pods -n crossplane-system
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.29.0"
+
+      - name: Setup Nushell
+        run: |
+          wget -q "https://github.com/nushell/nushell/releases/download/${NUSHELL_VERSION}/nu-${NUSHELL_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          tar -xzf "nu-${NUSHELL_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          sudo mv "nu-${NUSHELL_VERSION}-x86_64-unknown-linux-gnu/nu" /usr/local/bin/nu
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.STAGING_KUBECONFIG }}" | base64 -d > ~/.kube/config
+
+      - name: Deploy Platform to Staging
+        run: |
+          # GitOps bootstrap: installs/updates ArgoCD (idempotent) and applies ArgoCD Applications/ApplicationSets.
+          nu nu-scripts/platform-deploy.nu --environment staging --gitops --verbose
+
+  deploy-prod:
+    name: Deploy to Production
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.29.0"
+
+      - name: Setup Nushell
+        run: |
+          wget -q "https://github.com/nushell/nushell/releases/download/${NUSHELL_VERSION}/nu-${NUSHELL_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          tar -xzf "nu-${NUSHELL_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          sudo mv "nu-${NUSHELL_VERSION}-x86_64-unknown-linux-gnu/nu" /usr/local/bin/nu
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.PROD_KUBECONFIG }}" | base64 -d > ~/.kube/config
+
+      - name: Deploy Platform to Production
+        run: |
+          # GitOps bootstrap: installs/updates ArgoCD (idempotent) and applies ArgoCD Applications/ApplicationSets.
+          nu nu-scripts/platform-deploy.nu --environment prod --gitops --verbose
+
+      - name: Post-deployment Verification
+        run: |
+          echo "Waiting 30s for reconciliation..."
+          sleep 30
+
+          kubectl get providers
+          kubectl get xrd
+          kubectl get compositions
+
+          # Check provider health
+          kubectl get providers -o json | jq '.items[] | select(.status.conditions[] | select(.type=="Healthy" and .status!="True")) | .metadata.name'

@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: CHANGE_ME
+  labels:
+    platform.io/team: CHANGE_ME
+    platform.io/policy-profile: standard
+    platform.io/environment: dev

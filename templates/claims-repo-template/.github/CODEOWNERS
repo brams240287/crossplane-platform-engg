@@ -1,0 +1,5 @@
+# Default ownership. Bootstrap workflow will rewrite this.
+# Example:
+# * @your-org/platform-team
+# /claims/ @your-org/team-backend
+* @your-org/platform-team

@@ -1,0 +1,85 @@
+{
+  "packages": [
+    "kubernetes-helm@latest",
+    "kubectl@latest",
+    "kind@latest",
+    "yq-go@latest",
+    "jq@latest",
+    "azure-cli@latest",
+    "go@latest",
+    "nodejs@latest",
+    "yamllint@latest",
+    "shellcheck@latest",
+    "git@latest",
+    "nushell@latest",
+    "python@latest",
+    "gh@latest",
+    "python311Packages.mkdocs",
+    "python311Packages.mkdocs-material",
+    "python311Packages.beautifulsoup4"
+  ],
+  "shell": {
+    "init_hook": [
+      "echo '🚀 Crossplane Development Environment'",
+      "echo ''",
+      "echo '📦 Available Tools:'",
+      "echo '  • kubectl $(kubectl version --client --short 2>/dev/null | cut -d\" \" -f3)'",
+      "echo '  • helm $(helm version --short 2>/dev/null | cut -d\":\" -f2 | cut -d\"+\" -f1)'",
+      "echo '  • kind $(kind version 2>/dev/null | cut -d\" \" -f2)'",
+      "echo '  • crossplane CLI $(crossplane --version 2>/dev/null | cut -d\" \" -f2)'",
+      "echo '  • Azure CLI $(az version --query \"\\\"azure-cli\\\"\" -o tsv 2>/dev/null)'",
+      "echo '  • Go $(go version 2>/dev/null | cut -d\" \" -f3)'",
+      "echo ''",
+      "echo '🎯 Quick Commands:'",
+      "echo '  • ./scripts/install-kind.sh        - Create Kind cluster'",
+      "echo '  • ./scripts/install-crossplane.sh  - Install Crossplane'",
+      "echo '  • ./scripts/install-providers.sh   - Install Azure providers'",
+      "echo '  • ./scripts/validate-compositions.sh - Validate manifests'",
+      "echo '  • mkdocs serve                     - Run docs locally'",
+      "echo ''",
+      "",
+      "# Set up aliases",
+      "alias k=kubectl",
+      "alias kgp='kubectl get providers'",
+      "alias kgc='kubectl get compositions'",
+      "alias kgxrd='kubectl get xrd'",
+      "alias kclaims='kubectl get composite'",
+      "",
+      "# Set KUBECONFIG if not set",
+      "export KUBECONFIG=${KUBECONFIG:-$HOME/.kube/config}",
+      "",
+      "# Azure environment (uncomment and set your values)",
+      "# export AZURE_SUBSCRIPTION_ID=your-subscription-id",
+      "# export AZURE_TENANT_ID=your-tenant-id",
+      "# export AZURE_CLIENT_ID=your-client-id",
+      ""
+    ],
+    "scripts": {
+      "setup": [
+        "echo '🔧 Setting up Crossplane environment...'",
+        "chmod +x scripts/*.sh",
+        "echo '✅ Scripts are executable'",
+        "",
+        "# Install mkdocs-mermaid2-plugin via pip (not in nixpkgs)",
+        "if command -v python3 &> /dev/null; then",
+        "  python3 -m pip install --quiet --user mkdocs-mermaid2-plugin pymdown-extensions",
+        "  echo '✅ Additional Python packages installed'",
+        "fi",
+        "",
+        "echo ''",
+        "echo '🎉 Environment ready!'",
+        "echo 'Run: devbox shell  # to enter the environment'"
+      ],
+      "test": [
+        "./scripts/validate-compositions.sh"
+      ],
+      "docs": [
+        "mkdocs serve"
+      ]
+    }
+  },
+  "env": {
+    "CROSSPLANE_NAMESPACE": "crossplane-system",
+    "KUBECONFIG": "$HOME/.kube/config"
+  }
+}

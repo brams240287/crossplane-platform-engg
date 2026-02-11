@@ -1,0 +1,82 @@
+# Crossplane
+*.log
+.crossplane/
+crossplane.xpkg
+
+# Secrets
+*-credentials.yaml
+secrets/
+*.key
+*.pem
+
+# Kubernetes
+kubeconfig*
+.kube/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# MkDocs
+site/
+
+# Temporary files
+*.tmp
+*.bak
+.tmp/
+temp/
+
+# Environment variables
+.env
+.env.local
+*.env
+
+# Terraform (if migrating)
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# Pulumi (migration artifacts)
+.pulumi/
+Pulumi.*.yaml
+
+# Build artifacts
+dist/
+build/
+*.tar.gz
+*.zip
+
+# Test outputs
+test-results/
+coverage/
+.kubeconfig

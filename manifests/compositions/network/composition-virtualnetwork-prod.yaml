@@ -1,0 +1,152 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: virtualnetwork-azure-prod
+  labels:
+    provider: azure
+    environment: prod
+spec:
+  compositeTypeRef:
+    apiVersion: azure.platform.io/v1alpha1
+    kind: XVirtualNetwork
+  
+  mode: Pipeline
+  pipeline:
+  - step: patch-and-transform
+    functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      resources:
+      - name: resourceGroup
+        base:
+          apiVersion: azure.upbound.io/v1beta1
+          kind: ResourceGroup
+          spec:
+            forProvider:
+              location: eastus
+              tags:
+                environment: prod
+                tier: premium
+                backup: required
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.location
+          toFieldPath: spec.forProvider.location
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.resourceGroupName
+          toFieldPath: metadata.annotations[crossplane.io/external-name]
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.tags
+          toFieldPath: spec.forProvider.tags
+      
+      - name: virtualNetwork
+        base:
+          apiVersion: network.azure.upbound.io/v1beta1
+          kind: VirtualNetwork
+          spec:
+            forProvider:
+              addressSpace:
+              - "10.0.0.0/16"
+              location: eastus
+              resourceGroupNameSelector:
+                matchControllerRef: true
+              # Production: Enable DDoS protection
+              ddosProtectionPlan:
+                enable: true
+              tags:
+                environment: prod
+                tier: premium
+                highAvailability: required
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.location
+          toFieldPath: spec.forProvider.location
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.addressSpace
+          toFieldPath: spec.forProvider.addressSpace[0]
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.tags
+          toFieldPath: spec.forProvider.tags
+      
+      - name: subnet-0
+        base:
+          apiVersion: network.azure.upbound.io/v1beta1
+          kind: Subnet
+          spec:
+            forProvider:
+              addressPrefixes:
+              - "10.0.1.0/24"
+              resourceGroupNameSelector:
+                matchControllerRef: true
+              virtualNetworkNameSelector:
+                matchControllerRef: true
+              # Production: Enhanced security
+              privateEndpointNetworkPoliciesEnabled: true
+              privateLinkServiceNetworkPoliciesEnabled: true
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.subnets[0].addressPrefix
+          toFieldPath: spec.forProvider.addressPrefixes[0]
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.subnets[0].name
+          toFieldPath: metadata.annotations[crossplane.io/external-name]
+        readinessChecks:
+        - type: None
+      
+      - name: subnet-1
+        base:
+          apiVersion: network.azure.upbound.io/v1beta1
+          kind: Subnet
+          spec:
+            forProvider:
+              addressPrefixes:
+              - "10.0.2.0/24"
+              resourceGroupNameSelector:
+                matchControllerRef: true
+              virtualNetworkNameSelector:
+                matchControllerRef: true
+              privateEndpointNetworkPoliciesEnabled: true
+              privateLinkServiceNetworkPoliciesEnabled: true
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.subnets[1].addressPrefix
+          toFieldPath: spec.forProvider.addressPrefixes[0]
+          policy:
+            fromFieldPath: Optional
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.subnets[1].name
+          toFieldPath: metadata.annotations[crossplane.io/external-name]
+          policy:
+            fromFieldPath: Optional
+        readinessChecks:
+        - type: None
+      
+      - name: subnet-2
+        base:
+          apiVersion: network.azure.upbound.io/v1beta1
+          kind: Subnet
+          spec:
+            forProvider:
+              addressPrefixes:
+              - "10.0.3.0/24"
+              resourceGroupNameSelector:
+                matchControllerRef: true
+              virtualNetworkNameSelector:
+                matchControllerRef: true
+              privateEndpointNetworkPoliciesEnabled: true
+              privateLinkServiceNetworkPoliciesEnabled: true
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.subnets[2].addressPrefix
+          toFieldPath: spec.forProvider.addressPrefixes[0]
+          policy:
+            fromFieldPath: Optional
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.subnets[2].name
+          toFieldPath: metadata.annotations[crossplane.io/external-name]
+          policy:
+            fromFieldPath: Optional
+        readinessChecks:
+        - type: None

@@ -1,0 +1,23 @@
+apiVersion: azure.platform.io/v1alpha1
+kind: VirtualNetwork
+metadata:
+  name: dev-backend-vnet
+  namespace: team-backend
+spec:
+  parameters:
+    resourceGroupName: rg-dev-backend-eastus
+    location: eastus
+    addressSpace: "10.10.0.0/16"
+    subnets:
+      - name: backend-subnet
+        addressPrefix: "10.10.2.0/24"
+      - name: frontend-subnet
+        addressPrefix: "10.10.3.0/24"
+    tags:
+      owner: backend-team
+      costCenter: engineering backend
+      purpose: backend-services
+      compliance: none
+  compositionSelector:
+    matchLabels:
+      environment: dev

@@ -1,0 +1,15 @@
+apiVersion: azure.platform.io/v1alpha1
+kind: Tenant
+metadata:
+  name: team-backend
+  namespace: platform-tenants
+spec:
+  parameters:
+    namespace: team-backend
+    policyProfile: standard
+    # Kubernetes RBAC binds to the value found in the OIDC token's `groups` claim.
+    # In many AKS setups this is the Azure AD Group Object ID (a GUID).
+    aadGroupObjectId: 00000000-0000-0000-0000-000000000000
+  compositionSelector:
+    matchLabels:
+      type: platform

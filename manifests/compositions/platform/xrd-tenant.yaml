@@ -1,0 +1,49 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: xtenants.azure.platform.io
+spec:
+  group: azure.platform.io
+  names:
+    kind: XTenant
+    plural: xtenants
+  claimNames:
+    kind: Tenant
+    plural: tenants
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                parameters:
+                  type: object
+                  properties:
+                    namespace:
+                      type: string
+                      pattern: "^team-[a-z0-9]([a-z0-9-]{1,61}[a-z0-9])?$"
+                      description: "Target team namespace to provision (e.g., team-backend)"
+                    policyProfile:
+                      type: string
+                      enum: ["baseline", "standard", "restricted"]
+                      default: "standard"
+                    aadGroupObjectId:
+                      type: string
+                      pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+                      description: "Azure AD group Object ID to bind to namespace claim admin role"
+                    extraLabels:
+                      type: object
+                      description: "Additional namespace labels"
+                      additionalProperties:
+                        type: string
+                  required:
+                    - namespace
+                    - policyProfile
+                    - aadGroupObjectId
+              required:
+                - parameters

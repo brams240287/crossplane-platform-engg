@@ -1,0 +1,21 @@
+apiVersion: azure.platform.io/v1alpha1
+kind: VirtualNetwork
+metadata:
+  name: prod-backend-vnet
+  namespace: team-backend
+spec:
+  parameters:
+    resourceGroupName: rg-prod-backend-eastus
+    location: eastus
+    addressSpace: "10.20.0.0/16"
+    subnetAddressPrefix: "10.20.1.0/24"
+    tags:
+      owner: backend-team
+      costCenter: engineering
+      purpose: backend-services
+      compliance: pci-dss
+      backup: daily
+      highAvailability: required
+  compositionSelector:
+    matchLabels:
+      environment: prod
