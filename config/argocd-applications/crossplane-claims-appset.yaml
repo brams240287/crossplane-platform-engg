@@ -8,7 +8,7 @@ spec:
   goTemplateOptions: ["missingkey=error"]
   generators:
     - git:
-        repoURL: https://github.com/brams240287/project-crossplane.git
+        repoURL: https://github.com/brams240287/crossplane-platform-engg.git
         revision: main
         directories:
           - path: claims/dev
@@ -23,7 +23,7 @@ spec:
     spec:
       project: default
       source:
-        repoURL: https://github.com/brams240287/project-crossplane.git
+        repoURL: https://github.com/brams240287/crossplane-platform-engg.git
         targetRevision: main
         path: "{{.path.path}}"
         directory:
@@ -56,7 +56,7 @@ spec:
   goTemplateOptions: ["missingkey=error"]
   generators:
     - git:
-        repoURL: https://github.com/brams240287/project-crossplane.git
+        repoURL: https://github.com/brams240287/crossplane-platform-engg.git
         revision: main
         directories:
           - path: claims/prod
@@ -70,7 +70,7 @@ spec:
     spec:
       project: default
       source:
-        repoURL: https://github.com/brams240287/project-crossplane.git
+        repoURL: https://github.com/brams240287/crossplane-platform-engg.git
         targetRevision: main
         path: claims/prod
         directory:

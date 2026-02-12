@@ -61,7 +61,7 @@ jobs:
         run: |
           for file in $(find manifests/ claims/ config/ -name "*.yaml" -o -name "*.yml"); do
             echo "Validating $file..."
-            kubectl apply -f "$file" --dry-run=client --validate=true || echo "⚠️ Validation issue in $file"
+            kubectl apply -f "$file" --dry-run=client || echo "⚠️ Validation issue in $file"
           done
 
       - name: Validate Compositions with Crossplane CLI

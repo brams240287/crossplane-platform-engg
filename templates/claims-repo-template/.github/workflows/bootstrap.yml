@@ -41,6 +41,9 @@ permissions:
 jobs:
   bootstrap:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
@@ -61,9 +64,9 @@ jobs:
           app_name = os.environ.get('APP_NAME', '').strip()
           envs_raw = os.environ.get('ENVS_RAW', '').strip()
           policy = os.environ.get('POLICY', '').strip()
-            aad_group_object_id = os.environ.get('AAD_GROUP_OBJECT_ID', '').strip()
+          aad_group_object_id = os.environ.get('AAD_GROUP_OBJECT_ID', '').strip()
 
-            if not team_ns or not team_name or not app_name or not envs_raw or not policy or not aad_group_object_id:
+          if not team_ns or not team_name or not app_name or not envs_raw or not policy or not aad_group_object_id:
               raise SystemExit('Missing required inputs (TEAM_NS, TEAM_NAME, APP_NAME, ENVS_RAW, POLICY, AAD_GROUP_OBJECT_ID)')
 
           envs = [e.strip() for e in envs_raw.split(',') if e.strip()]
@@ -151,6 +154,7 @@ jobs:
       - name: Create bootstrap PR
         uses: peter-evans/create-pull-request@v6
         with:
+          token: ${{ secrets.BOOTSTRAP_PR_TOKEN }}
           title: "Bootstrap claims repo"
           body: |
             Bootstraps the claims repo with team/app settings, tenant onboarding claim, and example claims.

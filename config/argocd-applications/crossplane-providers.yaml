@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/brams240287/project-crossplane.git
+    repoURL: https://github.com/brams240287/crossplane-platform-engg.git
     targetRevision: main
     path: manifests/providers
   destination:
