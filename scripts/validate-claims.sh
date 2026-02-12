@@ -3,6 +3,24 @@ set -e
 
 echo "🔍 Validating Crossplane Claims..."
 
+cluster_reachable() {
+    kubectl version --request-timeout='2s' >/dev/null 2>&1
+}
+
+KUBE_VALIDATION=${KUBE_VALIDATION:-auto}
+if [ "$KUBE_VALIDATION" = "auto" ]; then
+    if cluster_reachable; then
+        KUBE_VALIDATION=enabled
+    else
+        KUBE_VALIDATION=disabled
+    fi
+fi
+
+if [ "$KUBE_VALIDATION" = "disabled" ]; then
+    echo "ℹ️  Skipping kubectl schema/API validation (no reachable Kubernetes API server)."
+    echo "    Tip: run with KUBE_VALIDATION=enabled when you have cluster access."
+fi
+
 CLAIMS_DIR="claims"
 ERRORS=0
 
@@ -48,11 +66,16 @@ find "$CLAIMS_DIR" -name "*.yaml" -o -name "*.yml" | while read -r file; do
         continue
     fi
     
-    # Validate against Kubernetes schema
-    if ! kubectl apply --dry-run=client -f "$file" > /dev/null 2>&1; then
-        echo "❌ $file: Kubernetes validation failed"
-        ((ERRORS++))
-        continue
+    # Validate against Kubernetes schema (only when API server is reachable).
+    if [ "$KUBE_VALIDATION" = "enabled" ]; then
+        if ! kubectl apply --dry-run=client -f "$file" > /dev/null 2>&1; then
+            echo "❌ $file: Kubernetes validation failed"
+            kubectl apply --dry-run=client -f "$file" || true
+            ((ERRORS++))
+            continue
+        fi
+    else
+        echo "⏭️  $file: Skipped kubectl validation (disabled)"
     fi
     
     validate_naming "$file"
