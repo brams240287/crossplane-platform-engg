@@ -45,7 +45,9 @@ jobs:
           set -euo pipefail
           curl -fsSL "${CROSSPLANE_CLI_BASE_URL}/${CROSSPLANE_CRANK_VERSION}/bin/linux_amd64/crank" -o /usr/local/bin/crossplane
           chmod +x /usr/local/bin/crossplane
-          crossplane version
+          # `crossplane version` tries to talk to a Kubernetes cluster; CI runs without a kubeconfig.
+          crossplane --help >/dev/null
+          echo "Crossplane CLI installed (${CROSSPLANE_CRANK_VERSION})"
 
       - name: Azure Login
         uses: azure/login@v2
