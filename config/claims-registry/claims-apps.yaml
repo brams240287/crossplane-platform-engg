@@ -1,0 +1,22 @@
+# Claims registry (per claims repo + environment).
+#
+# Add entries here to onboard additional team/app claims repos without changing the
+# Argo CD ApplicationSet.
+#
+# Each item becomes an Argo CD Application that syncs a single env folder (e.g. claims/dev)
+# from the given repo into the target cluster.
+#
+# Notes:
+# - `prune: true` is typical for dev/staging; `prune: false` is typical for prod.
+# - `destinationNamespace` should match the claim manifests' `metadata.namespace`.
+#
+# Example:
+# - name: testing
+#   repoURL: https://github.com/brams240287/Testing.git
+#   targetRevision: main
+#   env: dev
+#   path: claims/dev
+#   destinationNamespace: team-backend
+#   prune: true
+
+[]

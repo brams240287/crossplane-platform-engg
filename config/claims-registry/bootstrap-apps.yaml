@@ -1,0 +1,17 @@
+# Bootstrap registry (one per claims repo).
+#
+# Each item becomes an Argo CD Application that syncs the `bootstrap/` folder from the
+# claims repo (typically containing a `Tenant` claim like `bootstrap/tenant.yaml`).
+#
+# The template repo also writes `bootstrap/team.yaml` (not a Kubernetes manifest), so the
+# ApplicationSet excludes it.
+#
+# Example:
+# - name: testing
+#   repoURL: https://github.com/brams240287/Testing.git
+#   targetRevision: main
+#   path: bootstrap
+#   destinationNamespace: platform-tenants
+#
+
+[]
