@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: crossplane-claims-nonprod
+  name: crossplane-claims-bootstrap
   namespace: argocd
 spec:
   goTemplate: true
@@ -10,34 +10,35 @@ spec:
     - git:
         repoURL: https://github.com/brams240287/crossplane-platform-engg.git
         revision: main
-        directories:
-          - path: claims/dev
-          - path: claims/staging
+        files:
+          - path: config/claims-registry/bootstrap-apps.yaml
   template:
     metadata:
-      name: "claims-{{.path.basename}}"
+      name: "claims-bootstrap-{{.name}}"
       labels:
-        environment: "{{.path.basename}}"
-        type: claims
+        type: bootstrap
         managed-by: argocd
+        claims-repo: "{{.name}}"
     spec:
       project: default
       source:
-        repoURL: https://github.com/brams240287/crossplane-platform-engg.git
-        targetRevision: main
-        path: "{{.path.path}}"
+        repoURL: "{{.repoURL}}"
+        targetRevision: "{{.targetRevision}}"
+        path: "{{.path}}"
         directory:
           recurse: true
+          # The template writes bootstrap/team.yaml as a non-Kubernetes config file.
+          exclude: "team.yaml"
       destination:
         server: https://kubernetes.default.svc
-        namespace: team-backend
+        namespace: "{{.destinationNamespace}}"
       syncPolicy:
         automated:
           prune: true
           selfHeal: true
           allowEmpty: false
         syncOptions:
-          # Namespace provisioning is owned by bootstrap Tenant onboarding.
+          - CreateNamespace=true
         retry:
           limit: 5
           backoff:
@@ -49,7 +50,7 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: crossplane-claims-prod
+  name: crossplane-claims
   namespace: argocd
 spec:
   goTemplate: true
@@ -58,29 +59,30 @@ spec:
     - git:
         repoURL: https://github.com/brams240287/crossplane-platform-engg.git
         revision: main
-        directories:
-          - path: claims/prod
+        files:
+          - path: config/claims-registry/claims-apps.yaml
   template:
     metadata:
-      name: "claims-prod"
+      name: "claims-{{.name}}-{{.env}}"
       labels:
-        environment: prod
         type: claims
         managed-by: argocd
+        claims-repo: "{{.name}}"
+        environment: "{{.env}}"
     spec:
       project: default
       source:
-        repoURL: https://github.com/brams240287/crossplane-platform-engg.git
-        targetRevision: main
-        path: claims/prod
+        repoURL: "{{.repoURL}}"
+        targetRevision: "{{.targetRevision}}"
+        path: "{{.path}}"
         directory:
           recurse: true
       destination:
         server: https://kubernetes.default.svc
-        namespace: team-backend
+        namespace: "{{.destinationNamespace}}"
       syncPolicy:
         automated:
-          prune: false
+          prune: { { .prune } }
           selfHeal: true
           allowEmpty: false
         syncOptions:
