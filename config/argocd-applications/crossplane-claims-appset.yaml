@@ -82,7 +82,7 @@ spec:
         namespace: "{{.destinationNamespace}}"
       syncPolicy:
         automated:
-          prune: { { .prune } }
+          prune: {{.prune}}
           selfHeal: true
           allowEmpty: false
         syncOptions:
